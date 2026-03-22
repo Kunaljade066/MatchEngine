@@ -1,0 +1,1189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Match Engine · Hitwicket</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;800;900&family=Rajdhani:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:   #06060f;
+  --bg1:  #0a0a18;
+  --bg2:  #0d0d20;
+  --bg3:  #111128;
+  --bg4:  #161632;
+  --bd:   #1e1e3a;
+  --bd2:  #252548;
+  --bd3:  #303060;
+  --dim:  #303060;
+  --mute: #484880;
+  --fog:  #6868a0;
+  --mist: #9090c0;
+  --ghost:#c0c0e0;
+  --text: #eeeef8;
+  --g1:   #7c3aed;
+  --g2:   #06b6d4;
+  --g3:   #f59e0b;
+  --g4:   #10b981;
+  --g5:   #ef4444;
+  --g6:   #ec4899;
+  --grad: linear-gradient(135deg, var(--g1), var(--g2));
+  --grad2:linear-gradient(135deg, var(--g3), var(--g6));
+  --disp: 'Orbitron', sans-serif;
+  --body: 'Rajdhani', sans-serif;
+  --mono: 'JetBrains Mono', monospace;
+  --sh:   0 4px 32px rgba(124,58,237,.2);
+  --sh2:  0 8px 48px rgba(124,58,237,.35);
+  --glow: 0 0 20px rgba(124,58,237,.4);
+  --glow2:0 0 30px rgba(6,182,212,.3);
+}
+
+*,*::before,*::after { box-sizing:border-box; margin:0; padding:0 }
+html { scroll-behavior:smooth; -webkit-font-smoothing:antialiased }
+body {
+  background:var(--bg); color:var(--text);
+  font-family:var(--body); min-height:100vh;
+  font-size:14px; line-height:1.5; overflow-x:hidden;
+}
+
+/* Grid bg */
+body::before {
+  content:''; position:fixed; inset:0; pointer-events:none; z-index:0;
+  background-image:
+    linear-gradient(rgba(124,58,237,.04) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(124,58,237,.04) 1px,transparent 1px);
+  background-size:60px 60px;
+  mask-image:radial-gradient(ellipse 80% 80% at 50% 0%,black 30%,transparent 100%);
+}
+body::after {
+  content:''; position:fixed; inset:0; pointer-events:none; z-index:0;
+  background:
+    radial-gradient(ellipse 900px 600px at 10% -10%,rgba(124,58,237,.08) 0%,transparent 60%),
+    radial-gradient(ellipse 700px 500px at 90% 110%,rgba(6,182,212,.06) 0%,transparent 60%);
+}
+
+::-webkit-scrollbar { width:4px; height:4px }
+::-webkit-scrollbar-track { background:transparent }
+::-webkit-scrollbar-thumb { background:var(--g1); border-radius:2px; box-shadow:0 0 6px var(--g1) }
+
+/* Topbar */
+.topbar {
+  position:sticky; top:0; z-index:500; height:56px;
+  display:flex; align-items:center; padding:0 24px; gap:16px;
+  background:rgba(6,6,15,.92); border-bottom:1px solid rgba(124,58,237,.2);
+  backdrop-filter:blur(24px);
+}
+.topbar::after {
+  content:''; position:absolute; bottom:0; left:0; right:0; height:1px;
+  background:linear-gradient(90deg,transparent,var(--g1),var(--g2),var(--g1),transparent);
+  opacity:.5;
+}
+.tb-brand { display:flex; align-items:center; gap:10px; text-decoration:none }
+.tb-logo { width:32px; height:32px; border-radius:8px; background:var(--grad);
+  display:flex; align-items:center; justify-content:center; font-size:16px; flex-shrink:0 }
+.tb-name { font-family:var(--disp); font-size:14px; font-weight:800; letter-spacing:2px;
+  background:var(--grad); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text }
+.tb-sub { font-family:var(--mono); font-size:9px; color:var(--mute); letter-spacing:2px; text-transform:uppercase }
+.tb-right { margin-left:auto; display:flex; align-items:center; gap:8px }
+.pip { width:7px; height:7px; border-radius:50%; background:var(--g4);
+  animation:blink 3s ease-in-out infinite; box-shadow:0 0 8px var(--g4) }
+@keyframes blink { 0%,100%{opacity:1} 55%{opacity:.25} }
+.pip-lbl { font-family:var(--mono); font-size:10px; color:var(--mist) }
+.calc-all-btn {
+  display:flex; align-items:center; gap:6px; padding:8px 18px;
+  background:var(--grad); border:none; border-radius:8px;
+  font-family:var(--body); font-size:12px; font-weight:700; color:#fff;
+  cursor:pointer; transition:all .15s; letter-spacing:.5px; text-transform:uppercase;
+  box-shadow:0 4px 16px rgba(124,58,237,.4);
+}
+.calc-all-btn:hover { transform:translateY(-1px); box-shadow:0 6px 24px rgba(124,58,237,.6) }
+.calc-all-btn:active { transform:translateY(0) }
+
+/* Layout */
+#app { position:relative; z-index:1; display:flex; min-height:calc(100vh - 56px) }
+.sidebar {
+  width:220px; flex-shrink:0; border-right:1px solid rgba(124,58,237,.15);
+  background:rgba(6,6,15,.8); position:sticky; top:56px;
+  height:calc(100vh - 56px); overflow-y:auto;
+  display:flex; flex-direction:column; backdrop-filter:blur(10px);
+}
+.sidebar::-webkit-scrollbar { display:none }
+.sb-sec { padding:16px 0 8px }
+.sb-lbl { font-family:var(--mono); font-size:8px; letter-spacing:3px;
+  text-transform:uppercase; color:var(--dim); padding:0 14px 6px }
+.sb-item {
+  display:flex; align-items:center; gap:8px; padding:8px 14px;
+  font-family:var(--body); font-size:13px; font-weight:600; color:var(--mute);
+  cursor:pointer; border-left:2px solid transparent; transition:all .12s; user-select:none;
+}
+.sb-item:hover { background:rgba(124,58,237,.08); color:var(--ghost) }
+.sb-item.on { background:rgba(124,58,237,.12); color:var(--g2);
+  border-left-color:var(--g1); text-shadow:0 0 8px rgba(6,182,212,.3) }
+.sb-icon { font-size:14px; width:20px; text-align:center; flex-shrink:0 }
+.sb-badge { margin-left:auto; font-family:var(--mono); font-size:9px; font-weight:700;
+  padding:1px 6px; border-radius:10px; background:rgba(124,58,237,.15); color:var(--g2) }
+
+.main { flex:1; min-width:0; overflow-y:auto; overflow-x:hidden }
+.wrap { padding:24px; max-width:1400px }
+
+/* Section title */
+.sec-title {
+  font-family:var(--disp); font-size:16px; font-weight:800; letter-spacing:2px;
+  background:var(--grad); -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+  background-clip:text; margin-bottom:4px;
+}
+.sec-sub { font-family:var(--mono); font-size:10px; color:var(--mute);
+  letter-spacing:1px; margin-bottom:20px }
+.sec-head { display:flex; align-items:center; justify-content:space-between;
+  margin-bottom:18px; flex-wrap:wrap; gap:8px }
+
+/* Cards */
+.card {
+  background:var(--bg2); border:1px solid var(--bd); border-radius:12px;
+  padding:18px; position:relative; overflow:hidden; transition:border-color .2s, box-shadow .2s;
+}
+.card:hover { border-color:rgba(124,58,237,.3) }
+.card::before {
+  content:''; position:absolute; inset:0; background:var(--grad); opacity:0; transition:opacity .2s; pointer-events:none;
+}
+.card:hover::before { opacity:.03 }
+.card-title {
+  font-family:var(--mono); font-size:9px; letter-spacing:2.5px;
+  text-transform:uppercase; color:var(--mist); margin-bottom:14px;
+  padding-bottom:8px; border-bottom:1px solid var(--bd);
+  display:flex; align-items:center; gap:6px;
+}
+.card-title-dot { width:7px; height:7px; border-radius:50% }
+.grid2 { display:grid; grid-template-columns:1fr 1fr; gap:14px }
+.grid3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px }
+.grid5 { display:grid; grid-template-columns:repeat(5,1fr); gap:10px }
+
+/* Form fields */
+.field { margin-bottom:12px }
+.field:last-child { margin-bottom:0 }
+.fl {
+  display:block; font-family:var(--mono); font-size:8px; font-weight:700;
+  letter-spacing:2px; text-transform:uppercase; color:var(--mute); margin-bottom:5px;
+}
+.fi {
+  width:100%; background:rgba(0,0,0,.35); border:1px solid var(--bd);
+  color:var(--text); font-family:var(--body); font-size:13px;
+  padding:8px 10px; border-radius:7px; outline:none;
+  transition:border-color .15s, box-shadow .15s; font-weight:500;
+}
+.fi:focus { border-color:var(--g1); box-shadow:0 0 0 3px rgba(124,58,237,.15) }
+select.fi {
+  appearance:none;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%236868a0'/%3E%3C/svg%3E");
+  background-repeat:no-repeat; background-position:right 10px center; padding-right:28px; cursor:pointer;
+}
+select.fi option { background:var(--bg2) }
+.fi::-webkit-inner-spin-button { opacity:.4 }
+
+/* Slider row */
+.slider-row { display:flex; align-items:center; gap:10px }
+.slider-row input[type=range] {
+  flex:1; -webkit-appearance:none; appearance:none;
+  height:3px; background:var(--bd); border-radius:2px; outline:none;
+}
+.slider-row input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance:none; width:14px; height:14px; border-radius:50%;
+  background:var(--g1); cursor:pointer; box-shadow:0 0 8px rgba(124,58,237,.6);
+  transition:transform .1s;
+}
+.slider-row input[type=range]::-webkit-slider-thumb:hover { transform:scale(1.2) }
+.slider-val {
+  font-family:var(--mono); font-size:11px; font-weight:700;
+  color:var(--g2); min-width:38px; text-align:right;
+}
+
+/* Toggle */
+.toggle-row { display:flex; align-items:center; justify-content:space-between; margin-bottom:12px }
+.toggle-lbl { font-family:var(--mono); font-size:8px; font-weight:700;
+  letter-spacing:2px; text-transform:uppercase; color:var(--mute) }
+.toggle-wrap { position:relative; width:36px; height:20px }
+.toggle-wrap input { opacity:0; width:0; height:0; position:absolute }
+.toggle-track {
+  position:absolute; inset:0; border-radius:10px; background:var(--bd2);
+  cursor:pointer; transition:background .2s;
+}
+.toggle-wrap input:checked + .toggle-track { background:var(--g1) }
+.toggle-track::after {
+  content:''; position:absolute; top:3px; left:3px;
+  width:14px; height:14px; border-radius:50%; background:#fff;
+  transition:transform .2s; box-shadow:0 1px 4px rgba(0,0,0,.4);
+}
+.toggle-wrap input:checked + .toggle-track::after { transform:translateX(16px) }
+
+/* Chips */
+.chip {
+  display:inline-flex; align-items:center; gap:3px; padding:2px 8px;
+  border-radius:20px; font-family:var(--mono); font-size:9px; font-weight:700;
+  white-space:nowrap; letter-spacing:.5px;
+}
+.chip-green { background:rgba(16,185,129,.1); color:#34d399; border:1px solid rgba(16,185,129,.25) }
+.chip-amber { background:rgba(245,158,11,.1); color:#fbbf24; border:1px solid rgba(245,158,11,.25) }
+.chip-red   { background:rgba(239,68,68,.12); color:#f87171; border:1px solid rgba(239,68,68,.3) }
+.chip-cyan  { background:rgba(6,182,212,.1); color:#22d3ee; border:1px solid rgba(6,182,212,.25) }
+.chip-v     { background:rgba(124,58,237,.1); color:#a78bfa; border:1px solid rgba(124,58,237,.25) }
+
+/* Result cards */
+.result-card {
+  background:var(--bg3); border:1px solid var(--bd); border-radius:10px;
+  padding:14px 12px; text-align:center; transition:all .2s; cursor:default;
+}
+.result-card:hover { border-color:var(--g1); box-shadow:var(--glow); transform:translateY(-2px) }
+.result-shot { font-family:var(--mono); font-size:8px; letter-spacing:2px;
+  text-transform:uppercase; color:var(--mute); margin-bottom:6px }
+.result-num { font-family:var(--disp); font-size:26px; font-weight:800;
+  line-height:1; letter-spacing:-1px; margin-bottom:4px }
+.result-calc { font-family:var(--mono); font-size:9px; color:var(--dim) }
+
+/* Stats row */
+.stats-row { display:grid; grid-template-columns:repeat(auto-fit,minmax(100px,1fr)); gap:10px; margin-bottom:20px }
+.stat-card {
+  background:var(--bg2); border:1px solid var(--bd); border-radius:10px;
+  padding:12px 14px; position:relative; overflow:hidden;
+}
+.stat-n { font-family:var(--disp); font-size:22px; font-weight:800;
+  line-height:1; letter-spacing:-1px }
+.stat-l { font-family:var(--mono); font-size:8px; letter-spacing:2px;
+  text-transform:uppercase; color:var(--mute); margin-top:4px }
+.stat-bar { height:2px; border-radius:1px; margin-top:8px }
+
+/* Pipeline table */
+.pipe-table { width:100%; border-collapse:collapse; font-size:12px }
+.pipe-table thead th {
+  background:var(--bg3); padding:9px 12px; text-align:left;
+  font-family:var(--mono); font-size:8px; letter-spacing:2px;
+  text-transform:uppercase; color:var(--mute); border-bottom:1px solid var(--bd);
+  white-space:nowrap;
+}
+.pipe-table thead th:not(:first-child) { text-align:center }
+.pipe-table tbody tr { border-bottom:1px solid rgba(255,255,255,.03); transition:background .1s }
+.pipe-table tbody tr:hover { background:rgba(124,58,237,.06) }
+.pipe-table tbody tr:last-child { border-bottom:none }
+.pipe-table tbody td { padding:9px 12px; color:var(--mist); font-weight:600 }
+.pipe-table tbody td:not(:first-child) { text-align:center; font-family:var(--mono); font-size:11px }
+
+/* Bar rows */
+.bar-wrap { display:flex; align-items:center; gap:10px; margin-bottom:8px }
+.bar-lbl { font-size:12px; font-weight:700; color:var(--mist); width:90px; flex-shrink:0;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
+.bar-bg { flex:1; height:8px; background:var(--bg3); border-radius:4px; overflow:hidden }
+.bar-fill { height:100%; border-radius:4px; transition:width .6s cubic-bezier(.4,0,.2,1) }
+.bar-num { font-family:var(--mono); font-size:11px; font-weight:700; min-width:46px; text-align:right }
+.bar-chip { min-width:36px; text-align:right }
+
+/* Formula box */
+.formula-box {
+  background:rgba(0,0,0,.3); border:1px solid var(--bd); border-radius:8px;
+  padding:12px 14px; font-family:var(--mono); font-size:11px;
+  color:var(--mist); line-height:2; margin-top:8px;
+}
+.formula-box b { color:var(--g2) }
+.formula-box em { color:var(--g3); font-style:normal }
+.formula-box .hi { color:var(--g4) }
+
+/* Delivery simulator */
+.delivery-area {
+  background:var(--bg3); border:1px solid var(--bd); border-radius:12px;
+  padding:20px; text-align:center; min-height:140px;
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  position:relative; overflow:hidden;
+}
+.delivery-area::before {
+  content:''; position:absolute; inset:0;
+  background:radial-gradient(ellipse 400px 200px at 50% 50%, rgba(124,58,237,.06), transparent 70%);
+}
+.del-result {
+  font-family:var(--disp); font-size:48px; font-weight:900; letter-spacing:-2px;
+  line-height:1; transition:all .3s; position:relative;
+}
+.del-label { font-family:var(--mono); font-size:11px; color:var(--mute);
+  letter-spacing:2px; text-transform:uppercase; margin-top:6px }
+.del-prob { font-family:var(--mono); font-size:10px; color:var(--fog); margin-top:4px }
+.del-btn {
+  display:flex; align-items:center; gap:6px; padding:10px 22px;
+  background:var(--bg4); border:1px solid var(--bd2); border-radius:8px;
+  font-family:var(--body); font-size:12px; font-weight:700; color:var(--mist);
+  cursor:pointer; transition:all .15s; letter-spacing:.5px; text-transform:uppercase;
+  margin-top:14px;
+}
+.del-btn:hover { border-color:var(--g2); color:var(--g2); box-shadow:var(--glow2) }
+.del-btn:active { transform:scale(.97) }
+.scorecard {
+  display:flex; gap:8px; flex-wrap:wrap; margin-top:14px; justify-content:center
+}
+.sc-pill {
+  font-family:var(--mono); font-size:12px; font-weight:700;
+  padding:3px 12px; border-radius:20px; background:var(--bg4);
+  border:1px solid var(--bd); color:var(--mist); transition:all .2s;
+}
+.sc-pill.new { animation:pop .3s ease-out }
+@keyframes pop { 0%{transform:scale(1.4);opacity:.5} 100%{transform:scale(1);opacity:1} }
+
+/* Views */
+.view { display:none }
+.view.active { display:block }
+
+/* Responsive */
+@media(max-width:1024px) { .sidebar { display:none } }
+@media(max-width:768px) {
+  .grid2,.grid3,.grid5 { grid-template-columns:1fr }
+  .wrap { padding:14px }
+}
+
+/* Toast */
+.toast-wrap { position:fixed; bottom:20px; right:20px; z-index:9999; display:flex; flex-direction:column; gap:8px }
+.toast {
+  background:var(--bg2); border:1px solid var(--bd2); border-radius:10px;
+  padding:10px 16px; font-size:13px; font-weight:600; color:var(--text);
+  transform:translateX(120%); transition:transform .28s cubic-bezier(.34,1.56,.64,1);
+  box-shadow:var(--sh2); max-width:320px; display:flex; align-items:center; gap:8px;
+}
+.toast.show { transform:translateX(0) }
+.toast.ok { border-left:3px solid var(--g4) }
+
+/* Animate in */
+@keyframes fadein { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:none} }
+.card { animation:fadein .3s ease both }
+</style>
+</head>
+<body>
+
+<div class="toast-wrap" id="toastWrap"></div>
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <div class="tb-brand">
+    <div class="tb-logo">🏏</div>
+    <div>
+      <div class="tb-name">Match Engine</div>
+      <div class="tb-sub">Hitwicket · Probability Calculator</div>
+    </div>
+  </div>
+  <div class="tb-right">
+    <div class="pip"></div>
+    <span class="pip-lbl" id="engineStatus">Ready</span>
+    <button class="calc-all-btn" onclick="recalc()">⚡ Calculate</button>
+  </div>
+</div>
+
+<div id="app">
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <div class="sb-sec">
+      <div class="sb-lbl">Engine</div>
+      <div class="sb-item on" onclick="switchView('setup',this)"><span class="sb-icon">⚙️</span>Setup</div>
+      <div class="sb-item" onclick="switchView('results',this)"><span class="sb-icon">📊</span>Results</div>
+      <div class="sb-item" onclick="switchView('pipeline',this)"><span class="sb-icon">🔬</span>Pipeline</div>
+      <div class="sb-item" onclick="switchView('simulator',this)"><span class="sb-icon">🎯</span>Simulator</div>
+    </div>
+    <div class="sb-sec">
+      <div class="sb-lbl">Quick Shots</div>
+      <div class="sb-item" onclick="goToResults()"><span class="sb-icon">🔴</span>Dot/Block <span class="sb-badge" id="sb-dot">—</span></div>
+      <div class="sb-item" onclick="goToResults()"><span class="sb-icon">🟡</span>Nudge <span class="sb-badge" id="sb-1">—</span></div>
+      <div class="sb-item" onclick="goToResults()"><span class="sb-icon">🟠</span>Push <span class="sb-badge" id="sb-2">—</span></div>
+      <div class="sb-item" onclick="goToResults()"><span class="sb-icon">🔵</span>Four <span class="sb-badge" id="sb-4">—</span></div>
+      <div class="sb-item" onclick="goToResults()"><span class="sb-icon">🟣</span>Six <span class="sb-badge" id="sb-6">—</span></div>
+    </div>
+    <div class="sb-sec">
+      <div class="sb-lbl">Special Abilities</div>
+      <div class="sb-item" id="sb-sa" onclick="switchView('setup',this)"><span class="sb-icon">✨</span>SA Panel</div>
+    </div>
+  </div>
+
+  <!-- MAIN -->
+  <div class="main">
+    <div class="wrap">
+
+      <!-- ══ VIEW: SETUP ══ -->
+      <div class="view active" id="view-setup">
+        <div class="sec-head">
+          <div>
+            <div class="sec-title">PLAYER SETUP</div>
+            <div class="sec-sub">Configure batsman, bowler and match conditions</div>
+          </div>
+          <button class="calc-all-btn" onclick="recalc()">⚡ Calculate Probabilities</button>
+        </div>
+
+        <div class="grid2" style="margin-bottom:14px">
+          <!-- BATSMAN -->
+          <div class="card">
+            <div class="card-title">
+              <div class="card-title-dot" style="background:var(--g2);box-shadow:0 0 6px var(--g2)"></div>
+              Batsman
+            </div>
+            <div class="field">
+              <label class="fl">Rarity</label>
+              <select class="fi" id="bat-rarity" onchange="recalc()">
+                <option value="0">Common (Offset: 0)</option>
+                <option value="3">Reliable (Offset: 3)</option>
+                <option value="6">Brilliant (Offset: 6)</option>
+                <option value="9" selected>World Class (Offset: 9)</option>
+              </select>
+            </div>
+            <div class="field">
+              <label class="fl">Level</label>
+              <input type="number" class="fi" id="bat-level" value="1" min="1" max="50" oninput="recalc()">
+            </div>
+            <div class="field">
+              <label class="fl">Template</label>
+              <select class="fi" id="bat-template" onchange="recalc()">
+                <option value="aggressive" selected>Aggressive</option>
+                <option value="defensive">Defensive</option>
+                <option value="bowler_neutral">Bowler Neutral</option>
+              </select>
+            </div>
+            <div class="field">
+              <label class="fl">Active Shots</label>
+              <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px" id="shots-toggle-area">
+                <label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:12px;color:var(--mist)"><input type="checkbox" id="shot-0" checked onchange="recalc()"> Block</label>
+                <label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:12px;color:var(--mist)"><input type="checkbox" id="shot-1" checked onchange="recalc()"> Nudge</label>
+                <label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:12px;color:var(--mist)"><input type="checkbox" id="shot-2" checked onchange="recalc()"> Push</label>
+                <label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:12px;color:var(--mist)"><input type="checkbox" id="shot-4" checked onchange="recalc()"> Four</label>
+                <label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:12px;color:var(--mist)"><input type="checkbox" id="shot-6" checked onchange="recalc()"> Six</label>
+              </div>
+            </div>
+            <div class="field">
+              <label class="fl">AA Boost Level</label>
+              <input type="number" class="fi" id="bat-aa" value="0" min="0" max="20" oninput="recalc()">
+            </div>
+            <div class="field">
+              <label class="fl">Confidence Boost</label>
+              <div class="slider-row">
+                <input type="range" id="conf-boost" min="0" max="0.5" step="0.03" value="0.06"
+                  oninput="sv('conf-val',this.value,'0.00');recalc()">
+                <span class="slider-val" id="conf-val">0.06</span>
+              </div>
+            </div>
+            <div class="field">
+              <label class="fl">Passive Traits Boost (Bat)</label>
+              <div class="slider-row">
+                <input type="range" id="passive-bat" min="0" max="1" step="0.01" value="0"
+                  oninput="sv('pb-val',this.value,'0.00');recalc()">
+                <span class="slider-val" id="pb-val">0.00</span>
+              </div>
+            </div>
+            <div class="field">
+              <label class="fl">Props Modifier (Bat)</label>
+              <div class="slider-row">
+                <input type="range" id="props-bat" min="-0.3" max="0.3" step="0.01" value="0"
+                  oninput="sv('props-bat-val',this.value,'0.00');recalc()">
+                <span class="slider-val" id="props-bat-val">0.00</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- BOWLER -->
+          <div class="card">
+            <div class="card-title">
+              <div class="card-title-dot" style="background:var(--g5);box-shadow:0 0 6px var(--g5)"></div>
+              Bowler
+            </div>
+            <div class="field">
+              <label class="fl">Rarity</label>
+              <select class="fi" id="bowl-rarity" onchange="recalc()">
+                <option value="0" selected>Common (Offset: 0)</option>
+                <option value="3">Reliable (Offset: 3)</option>
+                <option value="6">Brilliant (Offset: 6)</option>
+                <option value="9">World Class (Offset: 9)</option>
+              </select>
+            </div>
+            <div class="field">
+              <label class="fl">Level</label>
+              <input type="number" class="fi" id="bowl-level" value="1" min="1" max="50" oninput="recalc()">
+            </div>
+            <div class="field">
+              <label class="fl">Ball Type</label>
+              <select class="fi" id="ball-type" onchange="recalc()">
+                <option value="4" data-name="In-Swinger" selected>In-Swinger (Base: 4)</option>
+                <option value="4" data-name="Out-Swinger">Out-Swinger (Base: 4)</option>
+                <option value="6" data-name="Yorker">Yorker (Base: 6)</option>
+                <option value="5" data-name="Bouncer">Bouncer (Base: 5)</option>
+                <option value="3" data-name="Slower">Slower Ball (Base: 3)</option>
+                <option value="5" data-name="Off-Break">Off-Break (Base: 5)</option>
+                <option value="5" data-name="Leg-Break">Leg-Break (Base: 5)</option>
+              </select>
+            </div>
+            <div class="field">
+              <label class="fl">AA Boost Level</label>
+              <input type="number" class="fi" id="bowl-aa" value="0" min="0" max="20" oninput="recalc()">
+            </div>
+            <div class="field">
+              <label class="fl">LHB–RHB Nerf</label>
+              <div class="slider-row">
+                <input type="range" id="lhb-nerf" min="0" max="0.5" step="0.04" value="0"
+                  oninput="sv('lhb-val',this.value,'0.00');recalc()">
+                <span class="slider-val" id="lhb-val">0.00</span>
+              </div>
+            </div>
+            <div class="field">
+              <label class="fl">Passive Traits Boost (Bowl)</label>
+              <div class="slider-row">
+                <input type="range" id="passive-bowl" min="0" max="1" step="0.01" value="0"
+                  oninput="sv('pbowl-val',this.value,'0.00');recalc()">
+                <span class="slider-val" id="pbowl-val">0.00</span>
+              </div>
+            </div>
+            <div class="field">
+              <label class="fl">Partnership Boost</label>
+              <div class="slider-row">
+                <input type="range" id="partner-boost" min="0" max="0.5" step="0.01" value="0"
+                  oninput="sv('part-val',this.value,'0.00');recalc()">
+                <span class="slider-val" id="part-val">0.00</span>
+              </div>
+            </div>
+            <div class="field">
+              <label class="fl">Props Modifier (Bowl)</label>
+              <div class="slider-row">
+                <input type="range" id="props-bowl" min="-0.3" max="0.3" step="0.01" value="0"
+                  oninput="sv('props-bowl-val',this.value,'0.00');recalc()">
+                <span class="slider-val" id="props-bowl-val">0.00</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- MATCH CONDITIONS -->
+        <div class="card" style="margin-bottom:14px">
+          <div class="card-title">
+            <div class="card-title-dot" style="background:var(--g3);box-shadow:0 0 6px var(--g3)"></div>
+            Match Conditions
+          </div>
+          <div class="grid3">
+            <div class="field">
+              <label class="fl">Deliveries Played</label>
+              <select class="fi" id="deliveries" onchange="recalc()">
+                <option value="initial">0–1 balls (initial reduction active)</option>
+                <option value="normal" selected>2+ balls (normal)</option>
+              </select>
+            </div>
+            <div class="field">
+              <label class="fl">Successive Boundaries</label>
+              <input type="number" class="fi" id="successive-bounds" value="0" min="0" max="10" oninput="recalc()">
+            </div>
+            <div class="field">
+              <label class="fl">Ball Color Effect</label>
+              <select class="fi" id="ball-color" onchange="recalc()">
+                <option value="green" selected>Green (+10% on 4s & 6s)</option>
+                <option value="yellow">Yellow (+5% on 4s & 6s)</option>
+                <option value="red">Red (+20% on 4s & 6s)</option>
+                <option value="none">None</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- SPECIAL ABILITIES -->
+        <div class="card">
+          <div class="card-title">
+            <div class="card-title-dot" style="background:var(--g6);box-shadow:0 0 6px var(--g6)"></div>
+            Special Abilities
+          </div>
+          <div class="grid3">
+            <div>
+              <div class="toggle-row">
+                <span class="toggle-lbl">Powersteal (Bat)</span>
+                <div class="toggle-wrap"><input type="checkbox" id="sa-powersteal" onchange="recalc()"><div class="toggle-track"></div></div>
+              </div>
+              <div class="field">
+                <label class="fl">Powersteal % steal</label>
+                <div class="slider-row">
+                  <input type="range" id="sa-powersteal-val" min="0" max="0.5" step="0.05" value="0.1"
+                    oninput="sv('sa-ps-show',this.value,'0.00');recalc()">
+                  <span class="slider-val" id="sa-ps-show">0.10</span>
+                </div>
+              </div>
+            </div>
+            <div>
+              <div class="toggle-row">
+                <span class="toggle-lbl">Choke (Bowl)</span>
+                <div class="toggle-wrap"><input type="checkbox" id="sa-choke" onchange="recalc()"><div class="toggle-track"></div></div>
+              </div>
+              <div class="field">
+                <label class="fl">Choke Reduction</label>
+                <div class="slider-row">
+                  <input type="range" id="sa-choke-val" min="0.05" max="0.4" step="0.05" value="0.15"
+                    oninput="sv('sa-ch-show',this.value,'0.00');recalc()">
+                  <span class="slider-val" id="sa-ch-show">0.15</span>
+                </div>
+              </div>
+            </div>
+            <div>
+              <div class="toggle-row">
+                <span class="toggle-lbl">Smash (Bat)</span>
+                <div class="toggle-wrap"><input type="checkbox" id="sa-smash" onchange="recalc()"><div class="toggle-track"></div></div>
+              </div>
+              <div class="field">
+                <label class="fl">Smash Boost (4 & 6)</label>
+                <div class="slider-row">
+                  <input type="range" id="sa-smash-val" min="0.05" max="0.5" step="0.05" value="0.2"
+                    oninput="sv('sa-sm-show',this.value,'0.00');recalc()">
+                  <span class="slider-val" id="sa-sm-show">0.20</span>
+                </div>
+              </div>
+            </div>
+            <div>
+              <div class="toggle-row">
+                <span class="toggle-lbl">Hit (Bat)</span>
+                <div class="toggle-wrap"><input type="checkbox" id="sa-hit" onchange="recalc()"><div class="toggle-track"></div></div>
+              </div>
+              <div class="field">
+                <label class="fl">Hit Boost (all shots)</label>
+                <div class="slider-row">
+                  <input type="range" id="sa-hit-val" min="0.05" max="0.4" step="0.05" value="0.1"
+                    oninput="sv('sa-ht-show',this.value,'0.00');recalc()">
+                  <span class="slider-val" id="sa-ht-show">0.10</span>
+                </div>
+              </div>
+            </div>
+            <div>
+              <div class="toggle-row">
+                <span class="toggle-lbl">Rage (Bat)</span>
+                <div class="toggle-wrap"><input type="checkbox" id="sa-rage" onchange="recalc()"><div class="toggle-track"></div></div>
+              </div>
+              <div class="field">
+                <label class="fl">Rage Multiplier</label>
+                <div class="slider-row">
+                  <input type="range" id="sa-rage-val" min="0.1" max="0.6" step="0.05" value="0.25"
+                    oninput="sv('sa-rg-show',this.value,'0.00');recalc()">
+                  <span class="slider-val" id="sa-rg-show">0.25</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══ VIEW: RESULTS ══ -->
+      <div class="view" id="view-results">
+        <div class="sec-head">
+          <div>
+            <div class="sec-title">DELIVERY PROBABILITIES</div>
+            <div class="sec-sub">Final visible probabilities for each shot outcome</div>
+          </div>
+        </div>
+        <div id="results-content">
+          <div style="padding:60px 20px;text-align:center;color:var(--mute);font-family:var(--mono);font-size:12px;letter-spacing:1px">
+            ⚡ Run the engine first — click Calculate above
+          </div>
+        </div>
+      </div>
+
+      <!-- ══ VIEW: PIPELINE ══ -->
+      <div class="view" id="view-pipeline">
+        <div class="sec-head">
+          <div>
+            <div class="sec-title">PROBABILITY PIPELINE</div>
+            <div class="sec-sub">Step-by-step formula trace for each shot</div>
+          </div>
+        </div>
+        <div id="pipeline-content">
+          <div style="padding:60px 20px;text-align:center;color:var(--mute);font-family:var(--mono);font-size:12px;letter-spacing:1px">
+            ⚡ Run the engine first — click Calculate above
+          </div>
+        </div>
+      </div>
+
+      <!-- ══ VIEW: SIMULATOR ══ -->
+      <div class="view" id="view-simulator">
+        <div class="sec-head">
+          <div>
+            <div class="sec-title">DELIVERY SIMULATOR</div>
+            <div class="sec-sub">Roll a delivery using the calculated probabilities</div>
+          </div>
+        </div>
+
+        <div class="grid2">
+          <div>
+            <div class="delivery-area" id="deliveryArea">
+              <div class="del-result" id="delResult" style="color:var(--mute)">—</div>
+              <div class="del-label" id="delLabel">Press Bowl to deliver</div>
+              <div class="del-prob" id="delProb"></div>
+            </div>
+            <div style="text-align:center">
+              <button class="del-btn" onclick="rollDelivery()">🏏 Bowl Delivery</button>
+              <button class="del-btn" onclick="resetSim()" style="margin-left:8px">↺ Reset</button>
+            </div>
+            <div style="margin-top:14px">
+              <div style="font-family:var(--mono);font-size:9px;letter-spacing:2px;color:var(--mute);margin-bottom:8px;text-transform:uppercase">Scorecard this over</div>
+              <div class="scorecard" id="scorecard"></div>
+            </div>
+            <div id="sim-totals" style="margin-top:14px"></div>
+          </div>
+
+          <div class="card">
+            <div class="card-title">
+              <div class="card-title-dot" style="background:var(--g2)"></div>
+              Shot Probability Distribution
+            </div>
+            <div id="sim-bars">
+              <div style="color:var(--mute);font-family:var(--mono);font-size:11px;text-align:center;padding:20px">
+                Calculate first to see distribution
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /wrap -->
+  </div><!-- /main -->
+</div><!-- /app -->
+
+<script>
+// ── DATA ──────────────────────────────────────────────────────────────────
+const SHOTS = [
+  {id:0, name:'Dot/Block', base:5, more:15, emoji:'🔴'},
+  {id:1, name:'Nudge',     base:5, more:44, emoji:'🟡'},
+  {id:2, name:'Push',      base:7, more:46, emoji:'🟠'},
+  {id:4, name:'Four',      base:12,more:49, emoji:'🔵'},
+  {id:6, name:'Six',       base:11,more:49, emoji:'🟣'},
+];
+
+let _last = null; // last computed result
+let _simDeliveries = [];
+let _simRuns = 0;
+
+// ── HELPERS ────────────────────────────────────────────────────────────────
+function sv(id, val, fmt) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = parseFloat(val).toFixed(2);
+}
+function g(id) { return document.getElementById(id) }
+function gv(id) { return parseFloat(g(id)?.value) || 0 }
+function toast(msg) {
+  const w = g('toastWrap');
+  const t = document.createElement('div');
+  t.className = 'toast ok'; t.textContent = msg;
+  w.appendChild(t); requestAnimationFrame(() => requestAnimationFrame(() => t.classList.add('show')));
+  setTimeout(() => { t.classList.remove('show'); setTimeout(() => t.remove(), 400); }, 3000);
+}
+function switchView(name, el) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.sb-item').forEach(i => i.classList.remove('on'));
+  const vEl = g('view-' + name);
+  if (vEl) vEl.classList.add('active');
+  if (el) el.classList.add('on');
+}
+function goToResults() {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.sb-item').forEach(i => i.classList.remove('on'));
+  g('view-results').classList.add('active');
+}
+
+// ── CHIP HELPER ────────────────────────────────────────────────────────────
+function probChip(v) {
+  if (v >= 82) return `<span class="chip chip-green">High</span>`;
+  if (v >= 65) return `<span class="chip chip-amber">Med</span>`;
+  return `<span class="chip chip-red">Low</span>`;
+}
+function probColor(v) {
+  if (v >= 82) return '#10b981';
+  if (v >= 65) return '#f59e0b';
+  if (v >= 40) return '#f87171';
+  return '#6868a0';
+}
+
+// ── CORE ENGINE ────────────────────────────────────────────────────────────
+function recalc() {
+  const batRarity  = gv('bat-rarity');
+  const batLevel   = Math.max(1, gv('bat-level') || 1);
+  const batAA      = gv('bat-aa');
+  const confBoost  = parseFloat(g('conf-boost').value);
+  const passiveBat = parseFloat(g('passive-bat').value);
+  const propsBat   = parseFloat(g('props-bat').value);
+
+  const bowlRarity   = gv('bowl-rarity');
+  const bowlLevel    = Math.max(1, gv('bowl-level') || 1);
+  const bowlAA       = gv('bowl-aa');
+  const ballBase     = parseFloat(g('ball-type').value);
+  const passiveBowl  = parseFloat(g('passive-bowl').value);
+  const partnerBoost = parseFloat(g('partner-boost').value);
+  const propsBowl    = parseFloat(g('props-bowl').value);
+  const lhbNerf      = parseFloat(g('lhb-nerf').value);
+
+  const deliveries   = g('deliveries').value;
+  const succBounds   = gv('successive-bounds');
+  const ballColor    = g('ball-color').value;
+
+  // SA
+  const saPowersteal = g('sa-powersteal').checked;
+  const saPSVal      = parseFloat(g('sa-powersteal-val').value);
+  const saChoke      = g('sa-choke').checked;
+  const saChokeVal   = parseFloat(g('sa-choke-val').value);
+  const saSmash      = g('sa-smash').checked;
+  const saSmashVal   = parseFloat(g('sa-smash-val').value);
+  const saHit        = g('sa-hit').checked;
+  const saHitVal     = parseFloat(g('sa-hit-val').value);
+  const saRage       = g('sa-rage').checked;
+  const saRageVal    = parseFloat(g('sa-rage-val').value);
+
+  const results = {};
+  const trace = {};
+
+  // 1. Bowling attribute
+  const bowlAttr = (bowlRarity + ballBase) * (1 + (bowlLevel + bowlAA - 1) * 0.1);
+
+  // 2. Ball power (adjusted for SA Powersteal)
+  let ballPowerBase = bowlAttr * (1 + (passiveBowl - lhbNerf - partnerBoost - propsBowl));
+  let ballPower = ballPowerBase;
+  let psBoostedBatMult = 0;
+
+  if (saPowersteal) {
+    const stolen = ballPowerBase * saPSVal;
+    ballPower = Math.max(0.1, ballPowerBase - stolen);
+    psBoostedBatMult = stolen / ballPowerBase;
+  }
+  // SA Choke reduces ball power further
+  if (saChoke) {
+    ballPower = ballPower * (1 - saChokeVal);
+  }
+
+  SHOTS.forEach(s => {
+    const active = g('shot-' + s.id)?.checked !== false;
+    const t = {};
+
+    // 1. Batting attribute
+    const batAttr = (s.base + batRarity) * (1 + (batLevel + batAA - 1) * 0.1);
+    t.batAttr = batAttr;
+    t.bowlAttr = bowlAttr;
+    t.ballPower = ballPower;
+
+    // 2. Bat power
+    let batPower = batAttr * (1 + (passiveBat + confBoost + propsBat));
+    if (saPowersteal) batPower = batPower * (1 + psBoostedBatMult);
+    if (saHit) batPower = batPower * (1 + saHitVal);
+    if (saRage && (s.id === 4 || s.id === 6)) batPower = batPower * (1 + saRageVal);
+    if (saSmash && (s.id === 4 || s.id === 6)) batPower = batPower * (1 + saSmashVal);
+    t.batPower = batPower;
+
+    // 3. Base probability
+    const baseP = ((batPower - ballPower) * 100) / batPower;
+    t.baseP = baseP;
+
+    // 4. Apply more/less factor (shot offset)
+    const afterMore = baseP + s.more;
+    t.afterMore = afterMore;
+
+    // 5. Initial delivery reduction
+    let afterInitial = afterMore;
+    if (deliveries === 'initial' && (s.id === 4 || s.id === 6)) {
+      afterInitial = afterMore * 0.7;
+    }
+    t.afterInitial = afterInitial;
+
+    // 6. Successive boundary nerf
+    let afterBounds = afterInitial;
+    if (s.id === 4) afterBounds = afterInitial * (1 - 0.13 * succBounds);
+    if (s.id === 6) afterBounds = afterInitial * (1 - 0.20 * succBounds);
+    t.afterBounds = afterBounds;
+
+    // 7. Ball color effect
+    let colorMod = 0;
+    if (ballColor === 'green' && (s.id === 4 || s.id === 6)) colorMod = 0.10;
+    if (ballColor === 'yellow' && (s.id === 4 || s.id === 6)) colorMod = 0.05;
+    if (ballColor === 'red' && (s.id === 4 || s.id === 6)) colorMod = 0.20;
+    const afterColor = afterBounds * (1 + colorMod);
+    t.afterColor = afterColor;
+
+    // 8. Clamp
+    const finalCalc = Math.min(99.9, Math.max(0, afterColor));
+    t.finalCalc = finalCalc;
+
+    // 9. Adjusting (−2) → visible
+    const visible = Math.max(0, finalCalc - 2);
+    t.visible = visible;
+
+    if (!active) {
+      t.active = false;
+      t.visible = 0;
+      t.finalCalc = 0;
+    } else {
+      t.active = true;
+    }
+
+    results[s.id] = t;
+    trace[s.id] = t;
+  });
+
+  _last = { results, bowlAttr, ballPower, batRarity, batLevel, batAA, bowlRarity, bowlLevel, bowlAA, ballBase };
+
+  // Update sidebar badges
+  SHOTS.forEach(s => {
+    const badgeEl = g('sb-' + (s.id === 0 ? 'dot' : s.id));
+    if (badgeEl && results[s.id]) {
+      badgeEl.textContent = results[s.id].visible.toFixed(1) + '%';
+    }
+  });
+
+  // Update engine status
+  g('engineStatus').textContent = '☁ ' + SHOTS.filter(s => results[s.id]?.active).length + ' shots';
+
+  renderResults();
+  renderPipeline();
+  renderSimBars();
+  toast('Probabilities calculated ✓');
+}
+
+// ── RENDER RESULTS ─────────────────────────────────────────────────────────
+function renderResults() {
+  if (!_last) return;
+  const { results, bowlAttr, ballPower, batRarity, batLevel, batAA, bowlRarity, bowlLevel, bowlAA, ballBase } = _last;
+  let h = '';
+
+  // Stat summary
+  h += `<div class="stats-row">`;
+  SHOTS.forEach(s => {
+    const r = results[s.id];
+    if (!r || !r.active) return;
+    const v = r.visible;
+    const c = probColor(v);
+    h += `<div class="stat-card">
+      <div class="stat-n" style="color:${c}">${v.toFixed(1)}%</div>
+      <div class="stat-l">${s.name}</div>
+      <div class="stat-bar" style="background:${c};box-shadow:0 0 6px ${c}44"></div>
+    </div>`;
+  });
+  h += `</div>`;
+
+  // Big result cards
+  h += `<div class="grid5" style="margin-bottom:20px">`;
+  SHOTS.forEach(s => {
+    const r = results[s.id];
+    if (!r || !r.active) return;
+    const v = r.visible;
+    const c = probColor(v);
+    h += `<div class="result-card">
+      <div class="result-shot">${s.emoji} ${s.name}</div>
+      <div class="result-num" style="color:${c}">${v.toFixed(1)}<span style="font-size:14px">%</span></div>
+      <div class="result-calc">Calc: ${r.finalCalc.toFixed(1)}%</div>
+      <div style="margin-top:6px">${probChip(v)}</div>
+    </div>`;
+  });
+  h += `</div>`;
+
+  // Visual bars
+  h += `<div class="card" style="margin-bottom:14px">`;
+  h += `<div class="card-title"><div class="card-title-dot" style="background:var(--g2)"></div>Shot Outcome Distribution</div>`;
+  SHOTS.forEach(s => {
+    const r = results[s.id];
+    if (!r || !r.active) return;
+    const v = r.visible;
+    const c = probColor(v);
+    h += `<div class="bar-wrap">
+      <span class="bar-lbl">${s.name}</span>
+      <div class="bar-bg"><div class="bar-fill" style="width:${Math.min(v,99.9).toFixed(1)}%;background:${c};box-shadow:0 0 8px ${c}44"></div></div>
+      <span class="bar-num" style="color:${c}">${v.toFixed(1)}%</span>
+      <span class="bar-chip">${probChip(v)}</span>
+    </div>`;
+  });
+  h += `</div>`;
+
+  // Attribute breakdown
+  h += `<div class="grid2">`;
+  h += `<div class="card">`;
+  h += `<div class="card-title"><div class="card-title-dot" style="background:var(--g2)"></div>Batting Attributes</div>`;
+  h += `<div class="formula-box">Rarity Offset: <b>${batRarity}</b> &nbsp;|&nbsp; Level: <b>${batLevel}</b> &nbsp;|&nbsp; AA: <b>${batAA}</b><br>Formula: <em>(base + rarity) × (1 + (level + AA - 1) × 0.1)</em><br><br>`;
+  SHOTS.forEach(s => {
+    const r = results[s.id];
+    if (!r || !r.active) return;
+    h += `Shot ${s.id} (${s.name}): base ${s.base} → <span class="hi">${r.batAttr.toFixed(2)}</span> attr → Bat Power <span class="hi">${r.batPower.toFixed(2)}</span><br>`;
+  });
+  h += `</div></div>`;
+
+  h += `<div class="card">`;
+  h += `<div class="card-title"><div class="card-title-dot" style="background:var(--g5)"></div>Bowling Attribute</div>`;
+  h += `<div class="formula-box">Rarity Offset: <b>${bowlRarity}</b> &nbsp;|&nbsp; Ball Base: <b>${ballBase}</b><br>Level: <b>${bowlLevel}</b> &nbsp;|&nbsp; AA: <b>${bowlAA}</b><br>Formula: <em>(rarity + base) × (1 + (level + AA - 1) × 0.1)</em><br><br>Bowling Attribute: <span class="hi">${bowlAttr.toFixed(2)}</span><br>Ball Power: <span class="hi">${ballPower.toFixed(2)}</span><br>Base Probability formula: <em>(bat power - ball power) × 100 ÷ bat power</em></div></div>`;
+  h += `</div>`;
+
+  // Bat vs Ball power comparison
+  h += `<div class="card" style="margin-top:14px">`;
+  h += `<div class="card-title"><div class="card-title-dot" style="background:var(--g3)"></div>Bat Power vs Ball Power</div>`;
+  h += `<div class="grid5">`;
+  SHOTS.forEach(s => {
+    const r = results[s.id];
+    if (!r || !r.active) return;
+    const wins = r.batPower > r.ballPower;
+    const adv = wins ? '#10b981' : '#ef4444';
+    h += `<div class="result-card">
+      <div class="result-shot">${s.name}</div>
+      <div style="font-size:11px;color:var(--mist);margin-top:4px">Bat: <b style="color:${adv}">${r.batPower.toFixed(1)}</b></div>
+      <div style="font-size:11px;color:var(--mist)">Ball: <b style="color:var(--mute)">${r.ballPower.toFixed(1)}</b></div>
+      <div style="font-size:10px;color:${adv};margin-top:4px">${wins ? 'Bat wins ↑' : 'Ball wins ↓'}</div>
+    </div>`;
+  });
+  h += `</div></div>`;
+
+  g('results-content').innerHTML = h;
+  // Animate bars
+  setTimeout(() => {
+    document.querySelectorAll('.bar-fill').forEach(b => { b.style.width = b.style.width; });
+  }, 50);
+}
+
+// ── RENDER PIPELINE ────────────────────────────────────────────────────────
+function renderPipeline() {
+  if (!_last) return;
+  const { results } = _last;
+  const activeShotsList = SHOTS.filter(s => results[s.id]?.active);
+
+  const steps = [
+    { label: 'Batting attribute', key: 'batAttr' },
+    { label: 'Bat power (with modifiers)', key: 'batPower' },
+    { label: 'Ball power', key: 'ballPower' },
+    { label: 'Base probability', key: 'baseP' },
+    { label: 'After more/less factor', key: 'afterMore' },
+    { label: 'After initial delivery nerf', key: 'afterInitial' },
+    { label: 'After boundary nerf', key: 'afterBounds' },
+    { label: 'After ball color effect', key: 'afterColor' },
+    { label: 'Final calculated (clamped)', key: 'finalCalc' },
+    { label: 'Visible probability (−2)', key: 'visible' },
+  ];
+
+  let h = '';
+
+  // Formula reference
+  h += `<div class="card" style="margin-bottom:14px">`;
+  h += `<div class="card-title"><div class="card-title-dot" style="background:var(--g6)"></div>Formula Reference</div>`;
+  h += `<div class="formula-box" style="line-height:2.2">
+    <em>1. Bat Attribute</em> = (shot_base + rarity_offset) × (1 + (level + AA − 1) × 0.1)<br>
+    <em>2. Bat Power</em> = bat_attr × (1 + passive + confidence + props_bat)<br>
+    <em>3. Bowl Attr</em> = (rarity_offset + ball_base) × (1 + (level + AA − 1) × 0.1)<br>
+    <em>4. Ball Power</em> = bowl_attr × (1 + passive − lhb − partnership − props_bowl)<br>
+    <em>5. Base Prob</em> = (bat_power − ball_power) × 100 ÷ bat_power<br>
+    <em>6. After Modifier</em> = base_prob + shot_more_less_offset<br>
+    <em>7. Initial Delivery</em> = prob × 0.7 (only for 4s & 6s on balls 0–1)<br>
+    <em>8. Boundary Nerf</em> = prob × (1 − 0.13 × n) for 4s; × (1 − 0.20 × n) for 6s<br>
+    <em>9. Ball Color</em> = prob × 1.10/1.05/1.20 (green/yellow/red) for 4s & 6s<br>
+    <em>10. Visible</em> = final_calculated − 2
+  </div></div>`;
+
+  // Table
+  h += `<div class="card" style="overflow-x:auto">`;
+  h += `<div class="card-title"><div class="card-title-dot" style="background:var(--g2)"></div>Step-by-Step Trace</div>`;
+  h += `<table class="pipe-table"><thead><tr>`;
+  h += `<th>Step</th>`;
+  activeShotsList.forEach(s => { h += `<th>${s.emoji} ${s.name}</th>`; });
+  h += `</tr></thead><tbody>`;
+
+  steps.forEach((step, idx) => {
+    h += `<tr${idx === steps.length - 1 ? ' style="background:rgba(124,58,237,.08)"' : ''}>`;
+    h += `<td>${idx + 1}. ${step.label}</td>`;
+    activeShotsList.forEach(s => {
+      const r = results[s.id];
+      let val = r[step.key];
+      const isProb = idx >= 3;
+      const c = isProb ? probColor(val) : 'var(--text)';
+      const suf = isProb ? '%' : '';
+      h += `<td style="color:${c}">${typeof val === 'number' ? val.toFixed(2) : val}${suf}</td>`;
+    });
+    h += `</tr>`;
+  });
+  h += `</tbody></table></div>`;
+
+  g('pipeline-content').innerHTML = h;
+}
+
+// ── SIMULATOR ──────────────────────────────────────────────────────────────
+function renderSimBars() {
+  if (!_last) return;
+  const { results } = _last;
+  let h = '';
+  SHOTS.forEach(s => {
+    const r = results[s.id];
+    if (!r || !r.active) return;
+    const v = r.visible;
+    const c = probColor(v);
+    h += `<div class="bar-wrap">
+      <span class="bar-lbl">${s.name}</span>
+      <div class="bar-bg"><div class="bar-fill" style="width:${Math.min(v,99.9).toFixed(1)}%;background:${c}"></div></div>
+      <span class="bar-num" style="color:${c}">${v.toFixed(1)}%</span>
+      ${probChip(v)}
+    </div>`;
+  });
+  g('sim-bars').innerHTML = h || '<div style="color:var(--mute);font-size:11px;font-family:var(--mono);text-align:center;padding:20px">No active shots</div>';
+}
+
+function rollDelivery() {
+  if (!_last) { toast('Calculate probabilities first!'); return; }
+  const { results } = _last;
+  const rng = Math.random() * 100;
+  const activeShots = SHOTS.filter(s => results[s.id]?.active);
+  if (!activeShots.length) { toast('No active shots!'); return; }
+
+  // Build distribution: each shot contributes based on its probability gap
+  // Use a weighted pick: calculate individual probability from the distribution
+  // probability of each shot = normalize based on (100 - prob) inversely...
+  // Using the real game mechanic: shots compete, highest outcome wins based on random
+  // Simplified: pick based on weighted inverse (lower boundary more likely to "land")
+  let shot = null;
+  // Authentic: roll against each shot's probability independently, pick highest scoring outcome that "hits"
+  // The game rolls: rand < visible_prob means the batsman succeeds at that outcome
+  // Outcomes are checked highest → lowest. If rand < 4's prob, it's a 4. If rand < 2's prob but not 4, it's 2 etc.
+  // We sort by descending id and cascade
+  const sorted = [...activeShots].sort((a,b) => b.id - a.id);
+  for (const s of sorted) {
+    if (rng < results[s.id].visible) { shot = s; break; }
+  }
+  if (!shot) { shot = activeShots[0]; } // fallback: dot
+
+  const r = results[shot.id];
+  const colors = {0:'#ef4444',1:'#f59e0b',2:'#f97316',4:'#06b6d4',6:'#7c3aed'};
+  const labels = {0:'DOT BALL',1:'SINGLE',2:'DOUBLE',4:'BOUNDARY!',6:'SIX!!!'};
+  const c = colors[shot.id] || '#10b981';
+
+  const delResult = g('delResult');
+  delResult.style.color = c;
+  delResult.textContent = shot.id === 0 ? '•' : shot.id;
+  delResult.style.textShadow = `0 0 30px ${c}66`;
+
+  g('delLabel').textContent = labels[shot.id] || shot.name;
+  g('delProb').textContent = `Probability: ${r.visible.toFixed(1)}%`;
+
+  const runValues = {0:0,1:1,2:2,4:4,6:6};
+  _simDeliveries.push(shot.id);
+  _simRuns += runValues[shot.id] || 0;
+
+  // Update scorecard
+  const sc = g('scorecard');
+  const pill = document.createElement('div');
+  pill.className = 'sc-pill new';
+  pill.style.color = c;
+  pill.style.borderColor = c + '44';
+  pill.textContent = shot.id === 0 ? '•' : shot.id;
+  sc.appendChild(pill);
+
+  // Totals
+  const balls = _simDeliveries.length;
+  const fours = _simDeliveries.filter(x => x === 4).length;
+  const sixes = _simDeliveries.filter(x => x === 6).length;
+  g('sim-totals').innerHTML = `<div class="formula-box" style="text-align:left">
+    <b>Runs:</b> <em>${_simRuns}</em> &nbsp;|&nbsp; <b>Balls:</b> ${balls} &nbsp;|&nbsp;
+    <b>SR:</b> <em>${balls ? (((_simRuns/balls)*100).toFixed(1)) : '0.0'}</em> &nbsp;|&nbsp;
+    <b>4s:</b> ${fours} &nbsp;|&nbsp; <b>6s:</b> ${sixes}
+  </div>`;
+}
+
+function resetSim() {
+  _simDeliveries = []; _simRuns = 0;
+  g('delResult').textContent = '—';
+  g('delResult').style.color = 'var(--mute)';
+  g('delResult').style.textShadow = 'none';
+  g('delLabel').textContent = 'Press Bowl to deliver';
+  g('delProb').textContent = '';
+  g('scorecard').innerHTML = '';
+  g('sim-totals').innerHTML = '';
+}
+
+// Initial load
+window.addEventListener('DOMContentLoaded', () => {
+  recalc();
+  setTimeout(() => {
+    switchView('setup', document.querySelector('.sb-item'));
+  }, 100);
+});
+</script>
+</body>
+</html>
